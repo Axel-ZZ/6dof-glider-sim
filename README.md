@@ -2,6 +2,12 @@
 
 A high-fidelity optimal control framework for autonomous trajectory planning and real-time visualization of F5B glider maneuvers.
 
+<p align="center">
+  <img src="plots/f5b/f5b_four_turns_3D_live.gif" width="700"><br>
+  <i>Optimized four-turn F5B pattern, replayed in the 3D viewer.</i><br>
+  <a href="videos/f5b_four_turns_3D_live.mp4">Full-resolution video with aircraft mesh →</a>
+</p>
+
 ## Overview
 
 This is an **EPFL semester project** that develops and optimizes complex aerodynamic trajectories for a 6-degree-of-freedom (6-DOF) radio-controlled sailplane (F5B glider) performing multi-turn competitive flight patterns. 
