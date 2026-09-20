@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>F5B Trajectory · Cesium</title>
+
+  <script src="https://cesium.com/downloads/cesiumjs/releases/1.115/Build/Cesium/Cesium.js"></script>
+  <link href="https://cesium.com/downloads/cesiumjs/releases/1.115/Build/Cesium/Widgets/widgets.css" rel="stylesheet" />
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow:wght@300;400;600&display=swap');
+
+    :root {
+      --c-bg:       #060a0f;
+      --c-surface:  #0c1420;
+      --c-border:   #1a2a3a;
+      --c-accent:   #00c8ff;
+      --c-accent2:  #ffb800;
+      --c-text:     #c8dce8;
+      --c-dim:      #4a6a7a;
+      --c-ok:       #00e5a0;
+      --c-warn:     #ff6040;
+      --font-mono:  'Share Tech Mono', monospace;
+      --font-ui:    'Barlow', sans-serif;
+      --panel-w:    290px;
+      --hud-h:      46px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: var(--c-bg); }
+    #cesiumContainer { position: absolute; inset: 0; }
+
+    /* HUD */
+    #hud {
+      position: absolute; top: 0; left: 0; right: 0; height: var(--hud-h);
+      display: flex; align-items: center; gap: 20px; padding: 0 18px;
+      background: linear-gradient(180deg, rgba(6,10,15,0.95) 0%, transparent 100%);
+      pointer-events: none; z-index: 10;
+      border-bottom: 1px solid rgba(26,42,58,0.4);
+    }
+    .hud-title { font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.2em; color: var(--c-accent); text-transform: uppercase; }
+    .hud-sep   { width: 1px; height: 18px; background: var(--c-border); flex-shrink: 0; }
+    .hud-stat  { font-family: var(--font-mono); font-size: 11px; color: var(--c-dim); white-space: nowrap; }
+    .hud-stat span { color: var(--c-text); margin-left: 4px; }
+
+    /* Panel */
+    #panel {
+      position: absolute; top: calc(var(--hud-h) + 10px); right: 14px;
+      width: var(--panel-w);
+      background: rgba(12,20,32,0.90);
+      border: 1px solid var(--c-border); border-radius: 3px;
+      backdrop-filter: blur(10px); z-index: 10;
+      font-family: var(--font-ui); overflow: hidden;
+    }
+    #panel::before {
+      content: ''; position: absolute; top: 0; left: 0;
+      width: 20px; height: 20px;
+      border-top: 2px solid var(--c-accent); border-left: 2px solid var(--c-accent);
+    }
+    .p-head {
+      padding: 9px 14px 9px 18px; border-bottom: 1px solid var(--c-border);
+      font-size: 9px; font-weight: 600; letter-spacing: 0.18em;
+      color: var(--c-dim); text-transform: uppercase;
+    }
+    .p-section { padding: 12px 14px; border-bottom: 1px solid var(--c-border); }
+    .p-section:last-child { border-bottom: none; }
+    .p-sub { font-size: 9px; font-weight: 600; letter-spacing: 0.14em; color: var(--c-dim); text-transform: uppercase; margin-bottom: 8px; }
+
+    .row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 5px; }
+    .row:last-child { margin-bottom: 0; }
+    .row .key { font-size: 10px; color: var(--c-dim); }
+    .row .val { font-family: var(--font-mono); font-size: 11px; color: var(--c-text); }
+    .val.a1 { color: var(--c-accent); }
+    .val.a2 { color: var(--c-accent2); }
+    .val.ok { color: var(--c-ok); }
+
+    /* Drop zones */
+    .dropzone {
+      border: 1.5px dashed var(--c-border); border-radius: 3px;
+      padding: 11px 10px; text-align: center; cursor: pointer;
+      transition: border-color .2s, background .2s; margin-bottom: 8px;
+    }
+    .dropzone:last-child { margin-bottom: 0; }
+    .dropzone:hover, .dropzone.over { border-color: var(--c-accent); background: rgba(0,200,255,0.05); }
+    .dropzone .dz-icon { font-size: 15px; margin-bottom: 3px; }
+    .dropzone p { font-size: 10px; color: var(--c-dim); line-height: 1.4; }
+    .dropzone p strong { color: var(--c-accent); }
+    .dz-model:hover, .dz-model.over { border-color: var(--c-accent2) !important; background: rgba(255,184,0,0.05) !important; }
+    .dz-model p strong { color: var(--c-accent2); }
+
+    /* Chips */
+    .chip { display: inline-block; font-family: var(--font-mono); font-size: 10px; padding: 2px 7px; border-radius: 2px; background: rgba(255,96,64,0.18); color: var(--c-warn); letter-spacing: 0.08em; }
+    .chip.ok { background: rgba(0,229,160,0.14); color: var(--c-ok); }
+    .chip.a2 { background: rgba(255,184,0,0.18); color: var(--c-accent2); }
+
+    /* Buttons */
+    .btn {
+      background: var(--c-surface); border: 1px solid var(--c-border);
+      color: var(--c-text); font-family: var(--font-mono); font-size: 11px;
+      padding: 5px 10px; border-radius: 2px; cursor: pointer;
+      transition: background .15s, color .15s, border-color .15s; flex-shrink: 0;
+    }
+    .btn:hover { background: var(--c-accent); color: var(--c-bg); border-color: var(--c-accent); }
+    .btn-row { display: flex; gap: 6px; flex-wrap: wrap; }
+
+    select.sel {
+      background: var(--c-surface); border: 1px solid var(--c-border);
+      color: var(--c-text); font-family: var(--font-mono); font-size: 11px;
+      padding: 5px 6px; border-radius: 2px; outline: none; flex: 1;
+    }
+
+    /* scanline */
+    body::after {
+      content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 999;
+      background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.025) 2px, rgba(0,0,0,0.025) 4px);
+    }
+
+    /* hide default Cesium chrome */
+    .cesium-viewer-toolbar, .cesium-viewer-animationContainer,
+    .cesium-viewer-timelineContainer, .cesium-viewer-bottom,
+    .cesium-widget-credits { display: none !important; }
+  </style>
+</head>
+<body>
+
+<div id="cesiumContainer"></div>
+
+<div id="hud">
+  <span class="hud-title">F5B · OCP Viewer</span>
+  <div class="hud-sep"></div>
+  <span class="hud-stat">STATUS <span id="hStatus">WAITING</span></span>
+  <div class="hud-sep"></div>
+  <span class="hud-stat">t <span id="hTime">—</span></span>
+  <div class="hud-sep"></div>
+  <span class="hud-stat">ALT <span id="hAlt">—</span></span>
+  <div class="hud-sep"></div>
+  <span class="hud-stat">MODEL <span id="hModel">Cesium_Air (default)</span></span>
+</div>
+
+<div id="panel">
+  <div class="p-head">F5B Trajectory Viewer</div>
+
+  <div class="p-section">
+    <div class="p-sub">Load Files</div>
+    <div class="dropzone" id="czmlDz" onclick="document.getElementById('czmlIn').click()">
+      <div class="dz-icon">📂</div>
+      <p><strong>Drop trajectory.czml</strong></p>
+      <p>Generated by export_czml.py</p>
+    </div>
+    <input type="file" id="czmlIn" accept=".czml,.json" style="display:none" />
+    <div class="dropzone dz-model" id="glbDz" onclick="document.getElementById('glbIn').click()">
+      <div class="dz-icon">✈️</div>
+      <p><strong>Drop glider.glb</strong> (optional)</p>
+      <p>Overrides built-in aircraft model</p>
+    </div>
+    <input type="file" id="glbIn" accept=".glb,.gltf" style="display:none" />
+  </div>
+
+  <div class="p-section">
+    <div class="row"><span class="key">Trajectory</span><span id="czmlChip" class="chip">NOT LOADED</span></div>
+    <div class="row"><span class="key">Model</span>    <span id="glbChip"  class="chip a2">BUILT-IN</span></div>
+    <div class="row"><span class="key">Duration</span> <span class="val"   id="infoDur">—</span></div>
+    <div class="row"><span class="key">Waypoints</span><span class="val a2" id="infoWp">—</span></div>
+  </div>
+
+  <div class="p-section">
+    <div class="p-sub">Live State</div>
+    <div class="row"><span class="key">Lat</span>     <span class="val a1" id="telLat">—</span></div>
+    <div class="row"><span class="key">Lon</span>     <span class="val a1" id="telLon">—</span></div>
+    <div class="row"><span class="key">Alt MSL</span> <span class="val"   id="telAlt">—</span></div>
+    <div class="row"><span class="key">Elapsed</span> <span class="val ok" id="telTime">—</span></div>
+  </div>
+
+  <div class="p-section">
+    <div class="p-sub">Playback</div>
+    <div class="btn-row">
+      <button class="btn" id="btnPlay" onclick="togglePlay()">▶ PLAY</button>
+      <button class="btn" onclick="resetClock()">⟳</button>
+      <select class="sel" id="speedSel" onchange="setSpeed(this.value)">
+        <option value="0.25">0.25×</option>
+        <option value="0.5">0.5×</option>
+        <option value="1" selected>1×</option>
+        <option value="2">2×</option>
+        <option value="5">5×</option>
+        <option value="10">10×</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="p-section">
+    <div class="p-sub">Camera</div>
+    <div class="btn-row">
+      <button class="btn" onclick="camFollow()">Follow</button>
+      <button class="btn" onclick="camTop()">Top</button>
+      <button class="btn" onclick="camSide()">Side</button>
+      <button class="btn" onclick="camFree()">Free</button>
+    </div>
+  </div>
+
+  <div class="p-section">
+    <div class="p-sub">Imagery</div>
+    <div class="btn-row">
+      <button class="btn" onclick="setImagery('satellite')">Satellite</button>
+      <button class="btn" onclick="setImagery('road')">Road</button>
+      <button class="btn" onclick="setImagery('osm')">OSM</button>
+    </div>
+    <p style="font-size:9px;color:var(--c-dim);margin-top:6px;">
+      Try Road or OSM for map-style views
+    </p>
+  </div>
+
+  <div class="p-section">
+    <div class="p-sub">Model Scale</div>
+    <div class="btn-row" style="margin-bottom:5px;">
+      <button class="btn" onclick="setScale(0.01)">0.01×</button>
+      <button class="btn" onclick="setScale(0.1)">0.1×</button>
+      <button class="btn" onclick="setScale(1)">1×</button>
+      <button class="btn" onclick="setScale(5)">5×</button>
+    </div>
+    <div class="btn-row">
+      <button class="btn" onclick="setScale(10)">10×</button>
+      <button class="btn" onclick="setScale(50)">50×</button>
+      <button class="btn" onclick="setScale(200)">200×</button>
+      <button class="btn" onclick="setScale(1000)">1000×</button>
+    </div>
+    <p style="font-size:9px;color:var(--c-dim);margin-top:6px;">
+      Custom models vary wildly in internal units — tune until it looks right
+    </p>
+  </div>
+</div>
+
+<script>
+// ─── Token ────────────────────────────────────────────────────────────────────
+// Supply your own Cesium Ion access token to load terrain and imagery.
+// Free tokens: https://ion.cesium.com/tokens
+Cesium.Ion.defaultAccessToken = 'YOUR_CESIUM_ION_ACCESS_TOKEN';
+
+// Default aircraft model — Cesium_Air via jsDelivr CDN, no server needed.
+// Drop your own glider.glb in the second panel drop zone to override.
+const DEFAULT_MODEL =
+  'https://cdn.jsdelivr.net/npm/cesium@1.115.0/Apps/SampleData/models/CesiumAir/Cesium_Air.glb';
+
+const GRIPEN_MODEL_CORRECTION = Cesium.Quaternion.fromHeadingPitchRoll(
+  new Cesium.HeadingPitchRoll(
+    Cesium.Math.toRadians(-90),
+    0,
+    Math.PI,
+  )
+);
+
+// ─── App state ────────────────────────────────────────────────────────────────
+let czmlSource    = null;
+let gliderEntity  = null;
+let czmlStartJd   = null;
+let czmlDuration  = 0;
+let customModelUri = null;
+let customModelName = null;
+let currentScale   = 0.15;  // real-size for the Gripen GLB (152 internal units ≈ 14.1 m)
+
+// ─── Async init (needed for await on ion terrain/imagery providers) ───────────
+(async () => {
+
+  const viewer = new Cesium.Viewer('cesiumContainer', {
+    terrainProvider: new Cesium.EllipsoidTerrainProvider(),
+    baseLayerPicker: false, geocoder: false, homeButton: false,
+    sceneModePicker: false, navigationHelpButton: false,
+    animation: false, timeline: false, fullscreenButton: false,
+    infoBox: false, selectionIndicator: false, shadows: false,
+    skyAtmosphere: new Cesium.SkyAtmosphere(),
+  });
+
+  viewer.resolutionScale = 1.5;
+  viewer.scene.fxaa = false;
+  viewer.scene.screenSpaceCameraController.zoomFactor = 1.0;
+  viewer.scene.screenSpaceCameraController.inertiaSpin = 0.7;
+  viewer.scene.screenSpaceCameraController.inertiaTranslate = 0.7;
+  viewer.scene.screenSpaceCameraController.inertiaZoom = 0.7;
+
+  viewer.scene.backgroundColor = Cesium.Color.fromCssColorString('#060a0f');
+  viewer.scene.globe.maximumScreenSpaceError = 4;
+  viewer.scene.globe.preloadAncestors = false;
+  viewer.scene.globe.preloadSiblings = false;
+
+  // Cesium World Terrain (asset ID 1) — real elevation from ion
+  try {
+    viewer.terrainProvider = await Cesium.CesiumTerrainProvider.fromIonAssetId(1);
+  } catch(e) {
+    console.warn('Terrain unavailable, using ellipsoid:', e);
+  }
+
+  // Bing Maps satellite imagery (asset ID 2) — requires ion token with assets:read
+  viewer.imageryLayers.removeAll();
+  try {
+    const bing = await Cesium.IonImageryProvider.fromAssetId(2);
+    viewer.imageryLayers.addImageryProvider(bing);
+  } catch(e) {
+    // Natural Earth fallback — always works offline
+    viewer.imageryLayers.addImageryProvider(
+      new Cesium.TileMapServiceImageryProvider({
+        url: Cesium.buildModuleUrl('Assets/Textures/NaturalEarthII'),
+        fileExtension: 'jpg', maximumLevel: 5,
+      })
+    );
+    console.warn('Bing imagery unavailable, using Natural Earth:', e);
+  }
+
+  // ─── CZML loading ───────────────────────────────────────────────────────────
+  setupDrop('czmlDz', 'czmlIn', ['.czml', '.json'], loadCZML);
+
+  async function loadCZML(file) {
+    let data;
+    try { data = JSON.parse(await file.text()); }
+    catch(e) { alert('Cannot parse CZML: ' + e.message); return; }
+
+    if (czmlSource) viewer.dataSources.remove(czmlSource, true);
+
+    const modelUri = customModelUri || DEFAULT_MODEL;
+    patchGliderModel(data, modelUri, currentScale);
+
+    czmlSource = await Cesium.CzmlDataSource.load(data);
+    viewer.dataSources.add(czmlSource);
+
+    const doc = data.find(p => p.id === 'document');
+    if (doc?.clock?.interval) {
+      const [s0, s1]   = doc.clock.interval.split('/');
+      czmlStartJd       = Cesium.JulianDate.fromIso8601(s0);
+      const t1          = Cesium.JulianDate.fromIso8601(s1);
+      czmlDuration      = Cesium.JulianDate.secondsDifference(t1, czmlStartJd);
+      viewer.clock.startTime    = czmlStartJd.clone();
+      viewer.clock.stopTime     = t1.clone();
+      viewer.clock.currentTime  = czmlStartJd.clone();
+      viewer.clock.clockRange   = Cesium.ClockRange.LOOP_STOP;
+      viewer.clock.multiplier   = parseFloat(document.getElementById('speedSel').value);
+      viewer.clock.shouldAnimate = false;
+    }
+
+    const wpCount = data.filter(p => p.id?.startsWith('waypoint_') && p.id.endsWith('_L')).length;
+    set('infoWp',   wpCount ? wpCount + ' planes' : 'none');
+    set('infoDur',  czmlDuration.toFixed(2) + ' s');
+    chip('czmlChip', 'LOADED', 'ok');
+    set('hStatus', 'LOADED');
+
+    gliderEntity = czmlSource.entities.getById('glider');
+    applyGripenModelCorrection();
+    viewer.flyTo(czmlSource, { duration: 2 });
+  }
+
+  // ─── GLB loading ─────────────────────────────────────────────────────────────
+  setupDrop('glbDz', 'glbIn', ['.glb', '.gltf'], loadGLB);
+
+  function loadGLB(file) {
+    if (customModelUri?.startsWith('blob:')) URL.revokeObjectURL(customModelUri);
+    customModelUri = URL.createObjectURL(file);
+    customModelName = file.name;
+    chip('glbChip', file.name, 'ok');
+    set('hModel', file.name);
+    if (czmlSource) alert('Model loaded — re-drop your trajectory.czml to apply it.');
+  }
+
+  // ─── Patch CZML glider packet ────────────────────────────────────────────────
+  // The exporter now always emits a model block with CDN default.
+  // This function only overrides the URI when a custom .glb was dropped,
+  // and always resets scale to whatever currentScale is.
+  function patchGliderModel(data, uri, scale) {
+    const pkt = data.find(p => p.id === 'glider');
+    if (!pkt) return;
+    // Remove old fallbacks from earlier exporter versions
+    delete pkt.point;
+    delete pkt.label;
+    delete pkt.billboard;
+    // Ensure model block exists (it always does in new exporter, but be safe)
+    if (!pkt.model) pkt.model = {};
+    // Override URI only if user dropped a custom .glb
+    if (uri !== DEFAULT_MODEL) pkt.model.gltf = uri;
+    pkt.model.scale         = scale;
+    delete pkt.model.minimumPixelSize;
+    delete pkt.model.maximumScale;
+    pkt.model.runAnimations = false;
+  }
+
+  function applyGripenModelCorrection() {
+    if (!gliderEntity?.orientation) return;
+    if (!customModelName || !/gripen/i.test(customModelName)) return;
+
+    const baseOrientation = gliderEntity.orientation;
+    gliderEntity.orientation = new Cesium.CallbackProperty((time, result) => {
+      const baseValue = Cesium.Property.getValueOrUndefined(
+        baseOrientation,
+        time,
+        new Cesium.Quaternion(),
+      );
+      if (!baseValue) return undefined;
+      return Cesium.Quaternion.multiply(baseValue, GRIPEN_MODEL_CORRECTION, result || new Cesium.Quaternion());
+    }, false);
+  }
+
+  // ─── Clock tick → telemetry ───────────────────────────────────────────────────
+  viewer.clock.onTick.addEventListener(clock => {
+    if (!gliderEntity || !czmlStartJd) return;
+    const elapsed = Math.max(0, Cesium.JulianDate.secondsDifference(clock.currentTime, czmlStartJd));
+    const t = elapsed.toFixed(2) + ' s';
+    set('telTime', t); set('hTime', t);
+    const pos = gliderEntity.position?.getValue(clock.currentTime);
+    if (pos) {
+      const c = Cesium.Cartographic.fromCartesian(pos);
+      set('telLat', Cesium.Math.toDegrees(c.latitude).toFixed(6)  + '°');
+      set('telLon', Cesium.Math.toDegrees(c.longitude).toFixed(6) + '°');
+      set('telAlt', c.height.toFixed(1) + ' m');
+      set('hAlt',   c.height.toFixed(1) + ' m');
+    }
+    document.getElementById('btnPlay').textContent =
+      clock.shouldAnimate ? '⏸ PAUSE' : '▶ PLAY';
+  });
+
+  // ─── Playback ─────────────────────────────────────────────────────────────────
+  window.togglePlay = () => { viewer.clock.shouldAnimate = !viewer.clock.shouldAnimate; };
+  window.resetClock = () => {
+    if (!czmlStartJd) return;
+    viewer.clock.currentTime = czmlStartJd.clone();
+    viewer.clock.shouldAnimate = false;
+  };
+  window.setSpeed = v => { viewer.clock.multiplier = parseFloat(v); };
+
+  // ─── Scale ────────────────────────────────────────────────────────────────────
+  window.setScale = s => {
+    currentScale = s;
+    if (gliderEntity?.model) {
+      // ModelGraphics.scale is a Property, set via ConstantProperty
+      gliderEntity.model.scale = new Cesium.ConstantProperty(s);
+    }
+    set('hModel', (customModelUri ? 'custom' : 'Cesium_Air') + ' @ ' + s + '×');
+  };
+
+  // ─── Camera presets ───────────────────────────────────────────────────────────
+  window.camFollow = () => { if (gliderEntity) viewer.trackedEntity = gliderEntity; };
+  window.camFree   = () => { viewer.trackedEntity = undefined; };
+  window.camTop    = () => {
+    viewer.trackedEntity = undefined;
+    if (czmlSource) viewer.flyTo(czmlSource, {
+      offset: new Cesium.HeadingPitchRange(0, Cesium.Math.toRadians(-89), 700),
+      duration: 1.5,
+    });
+  };
+  window.camSide = () => {
+    viewer.trackedEntity = undefined;
+    if (czmlSource) viewer.flyTo(czmlSource, {
+      offset: new Cesium.HeadingPitchRange(
+        Cesium.Math.toRadians(90), Cesium.Math.toRadians(-15), 600),
+      duration: 1.5,
+    });
+  };
+
+  // ─── Helpers ──────────────────────────────────────────────────────────────────
+  function set(id, text) { document.getElementById(id).textContent = text; }
+  function chip(id, text, cls) {
+    const el = document.getElementById(id);
+    el.textContent = text;
+    el.className = 'chip' + (cls ? ' ' + cls : '');
+  }
+  function setupDrop(zoneId, inputId, exts, handler) {
+    const zone  = document.getElementById(zoneId);
+    const input = document.getElementById(inputId);
+    zone.addEventListener('dragover',  e => { e.preventDefault(); zone.classList.add('over'); });
+    zone.addEventListener('dragleave', () => zone.classList.remove('over'));
+    zone.addEventListener('drop', e => {
+      e.preventDefault(); zone.classList.remove('over');
+      const f = e.dataTransfer.files[0];
+      if (f && exts.some(x => f.name.toLowerCase().endsWith(x))) handler(f);
+      else alert('Please drop a ' + exts.join('/') + ' file.');
+    });
+    input.addEventListener('change', e => { if (e.target.files[0]) handler(e.target.files[0]); });
+  }
+
+})(); // end async IIFE
+</script>
+</body>
+</html>
