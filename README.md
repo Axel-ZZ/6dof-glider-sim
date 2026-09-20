@@ -12,7 +12,7 @@ A high-fidelity optimal control framework for autonomous trajectory planning and
 
 This is an **EPFL semester project** that develops and optimizes complex aerodynamic trajectories for a 6-degree-of-freedom (6-DOF) radio-controlled sailplane (F5B glider) performing multi-turn competitive flight patterns. 
 
-**Scientific Context**: This work serves as the **6-DOF inner-loop trajectory planner** for a future **aerodynamic co-design pipeline** that extends the planar co-design framework of [Affinita et al. (IROS 2026)](https://example.com) at EPFL. The vision is to jointly optimize airfoil geometry and flight trajectories in 3D. This OCP represents the **trajectory optimization half** of that vision, while the aerodynamic shape optimization (wing/fuselage geometry) forms the complementary half. Together, they enable simultaneous design of airfoil and maneuver for next-generation F5B competition aircraft.
+**Scientific Context**: This work serves as the **6-DOF inner-loop trajectory planner** for a future **aerodynamic co-design pipeline** that extends the co-design framework of [Affinita et al., *Gradient-based Nested Co-Design of Aerodynamic Shape and Control for Winged Robots*](https://arxiv.org/abs/2603.06760) (arXiv:2603.06760) at EPFL. The vision is to jointly optimize airfoil geometry and flight trajectories in 3D. This OCP represents the **trajectory optimization half** of that vision, while the aerodynamic shape optimization (wing/fuselage geometry) forms the complementary half. Together, they enable simultaneous design of airfoil and maneuver for next-generation F5B competition aircraft.
 
 Using **CasADi-based trajectory optimization**, the system computes energy-efficient maneuvers subject to aerodynamic, control, and path constraints, then visualizes results through interactive 3D rendering, geospatial mapping, and cinematic MP4 generation.
 
@@ -443,7 +443,7 @@ g.append(alt[k] >= 50)               # min 50 m AGL
 - Mingda Xu, [Computer Vision Lab (CVL)](https://www.epfl.ch/labs/cvlab/) — EPFL
 - Rudolf Reiter, [Robotics and Perception Group](https://www.inf.ics.ifi.uzh.ch/perception/) — UZH
 
-**Scientific Motivation**: This work is motivated by and extends the aerodynamic co-design framework of **Daniele Affinita et al.** (IROS 2026, EPFL), which jointly optimizes airfoil shapes and flight trajectories in the planar setting. This project is the 3D trajectory optimization component of the larger vision.
+**Scientific Motivation**: This work is motivated by and extends the aerodynamic co-design framework of Daniele Affinita, Mingda Xu, Benoît Valentin Gherardi and Pascal Fua, *[Gradient-based Nested Co-Design of Aerodynamic Shape and Control for Winged Robots](https://arxiv.org/abs/2603.06760)* (arXiv:2603.06760, EPFL), which jointly optimizes airfoil shapes and flight trajectories in the planar setting. This project is the 3D trajectory optimization component of the larger vision.
 
 **Built with**:
 - **CasADi** for optimal control
